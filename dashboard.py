@@ -28,18 +28,24 @@ with col3:
     selected_label = st.selectbox("Display Timezone", list(timezone_options.keys()), index=0)
     selected_tz = pytz.timezone(timezone_options[selected_label])
 
-# Convert to local race start
+# Add pre-race session duration: 30 min practice + 15 min quali + 2 min grid
+prerace_duration = timedelta(minutes=47)
+
+# Compute adjusted race start time
 gmt_dt = datetime.combine(gmt_date, gmt_time)
-race_start_utc = pytz.utc.localize(gmt_dt)
+race_start_utc = pytz.utc.localize(gmt_dt) + prerace_duration
 race_start_local = race_start_utc.astimezone(selected_tz)
+
+# Generate 24-hour stint blocks starting after pre-race
 time_blocks = [(race_start_local + timedelta(hours=i)).strftime("%I:%M %p") for i in range(24)]
 
+st.markdown(f"🟠 **Note:** Race stints start at {race_start_local.strftime('%I:%M %p %Z')} after accounting for 47 min pre-race (30m Practice, 15m Quali, 2m Grid).")
 st.markdown("---")
 
 # ======================
-# SECTION 2: Rotated Driver Table
+# SECTION 2: Rotated Driver Schedule
 # ======================
-st.header("📋 Rotated Driver Schedule")
+st.header("📋 24-Hour Driver Schedule")
 
 drivers = st.multiselect("Select drivers", options=["Tom", "Chad", "Kyle"], default=["Tom", "Chad", "Kyle"])
 roles = ["Driving", "Spotting", "Resting"]
@@ -50,11 +56,11 @@ emoji_map = {
 }
 reverse_map = {v: k for k, v in emoji_map.items()}
 
-# Create empty table with drivers as rows, time blocks as columns
+# Create DataFrame: drivers as index, time blocks as columns
 rotated_data = {time_label: [emoji_map["Resting"]] * len(drivers) for time_label in time_blocks}
 rotated_df = pd.DataFrame(rotated_data, index=drivers)
 
-# Streamlit data editor
+# Editable table
 edited = st.data_editor(
     rotated_df,
     column_config={
@@ -69,7 +75,7 @@ edited = st.data_editor(
     key="rotated_editor"
 )
 
-# Convert emoji labels back to raw role text
+# Prepare CSV output
 csv_ready_df = edited.copy()
 for col in csv_ready_df.columns:
     csv_ready_df[col] = csv_ready_df[col].map(lambda x: reverse_map.get(x, x))
