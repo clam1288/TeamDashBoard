@@ -81,77 +81,40 @@ reverse_map = {v: k for k, v in emoji_map.items()}
 drivers = st.multiselect("Drivers", options=["Tom", "Chad", "Kyle"], default=["Tom", "Chad", "Kyle"])
 
 # ======================
-# Auto Mode Toggle
+# Session State Setup
 # ======================
-auto_mode = st.toggle("🔁 Enable Automated Mode")
-
-# Initialize persistent session state table
 if "stint_df" not in st.session_state:
-    # Start with all Rest
-    table_data = {t: [emoji_map["Rest"]] * len(drivers) for t in time_blocks}
-    st.session_state.stint_df = pd.DataFrame(table_data, index=drivers)
+    data = {t: [emoji_map["Rest"]] * len(drivers) for t in time_blocks}
+    st.session_state.stint_df = pd.DataFrame(data, index=drivers)
+
+if "auto_mode" not in st.session_state:
+    st.session_state.auto_mode = False
 
 # ======================
-# Auto-Fill Pattern
+# Auto Mode Toggle with Confirmation
 # ======================
-if auto_mode:
+user_toggle = st.checkbox("🔁 Enable Automated Mode", value=st.session_state.auto_mode)
+
+trigger_automated_fill = False
+
+if user_toggle and not st.session_state.auto_mode:
+    confirm = st.radio("⚠️ This will erase any changes made in manual mode. Do you want to continue?", ["No", "Yes"], horizontal=True)
+    if confirm == "Yes":
+        st.session_state.auto_mode = True
+        trigger_automated_fill = True
+    else:
+        st.session_state.auto_mode = False
+elif not user_toggle:
+    st.session_state.auto_mode = False
+
+# ======================
+# Auto Fill Logic
+# ======================
+if st.session_state.auto_mode and trigger_automated_fill:
     st.markdown("#### ⚙️ Auto-generate Stint Schedule")
     starting_role = st.selectbox("Select Starting Role for Driver 1", options=roles, index=0)
 
-    # Driver patterns
+    # Finalized Patterns
     pattern_1 = ["Drive", "Spot", "Rest", "Rest", "Spot", "Drive", "Drive", "Spot"]
     pattern_2 = ["Spot", "Drive", "Drive", "Spot", "Rest", "Rest", "Spot", "Drive", "Drive", "Spot"]
-    pattern_3 = ["Rest", "Rest", "Spot", "Drive", "Drive", "Spot", "Rest", "Rest"]
-
-    patterns = [pattern_1, pattern_2, pattern_3]
-
-    df = st.session_state.stint_df.copy()
-    for i, driver in enumerate(drivers):
-        pat = patterns[i % len(patterns)]
-        for t in range(24):
-            role = pat[t % len(pat)]
-            df.loc[driver, time_blocks[t]] = emoji_map[role]
-    st.session_state.stint_df = df  # update state
-
-# ======================
-# Table Display (split in two)
-# ======================
-df = st.session_state.stint_df
-
-first_half_cols = time_blocks[:12]
-second_half_cols = time_blocks[12:]
-
-st.markdown("#### ⏱ Hours 0–11")
-first_half = st.data_editor(
-    df[first_half_cols],
-    column_config={
-        col: st.column_config.SelectboxColumn(label=col, options=list(emoji_map.values()), required=True)
-        for col in first_half_cols
-    },
-    use_container_width=True,
-    num_rows="fixed",
-    key="first_half"
-)
-
-st.markdown("#### ⏱ Hours 12–23")
-second_half = st.data_editor(
-    df[second_half_cols],
-    column_config={
-        col: st.column_config.SelectboxColumn(label=col, options=list(emoji_map.values()), required=True)
-        for col in second_half_cols
-    },
-    use_container_width=True,
-    num_rows="fixed",
-    key="second_half"
-)
-
-# ======================
-# Export CSV
-# ======================
-merged_df = pd.concat([first_half, second_half], axis=1)
-csv_df = merged_df.copy()
-for col in csv_df.columns:
-    csv_df[col] = csv_df[col].map(lambda x: reverse_map.get(x, x))
-
-csv = csv_df.to_csv().encode("utf-8")
-st.download_button("📥 Download CSV", csv, "driver_stint_plan.csv", "text/csv")
+    pattern_3 = ["Rest", "Rest", "Spot", "Drive", "Drive", "Spot", "Rest", "Re]()_
