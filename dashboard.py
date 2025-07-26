@@ -23,7 +23,7 @@ with st.sidebar:
 st.markdown("## 🕒 Driver Stint Planner")
 
 # ======================
-# Compact Labeled Input Row
+# Input Section
 # ======================
 with st.container():
     c1, c2, c3, c4, c5, c6, c7 = st.columns([1.1, 1, 1, 1, 1, 1, 2])
@@ -50,7 +50,7 @@ with st.container():
         st.caption("🧮 Start = GMT + Pre-race")
 
 # ======================
-# Calculate Time Blocks
+# Time Calculations
 # ======================
 tz_map = {
     "EST": "US/Eastern",
@@ -66,7 +66,7 @@ race_start_local = race_start_utc.astimezone(selected_tz)
 time_blocks = [(race_start_local + timedelta(hours=i)).strftime("%-I:%M%p") for i in range(24)]
 
 # ======================
-# Driver Config
+# Driver Roles
 # ======================
 st.markdown("---")
 st.markdown("### 📋 Stint Table")
@@ -81,20 +81,45 @@ emoji_map = {
 reverse_map = {v: k for k, v in emoji_map.items()}
 
 # ======================
-# Build Full Table
+# Automated Mode Toggle
 # ======================
-full_data = {t: [emoji_map["Rest"]] * len(drivers) for t in time_blocks}
-full_df = pd.DataFrame(full_data, index=drivers)
+auto_mode = st.toggle("🔁 Enable Automated Mode")
 
 # ======================
-# Slice into Two Halves
+# Initialize Table
+# ======================
+full_data = {t: [emoji_map["Rest"]] * len(drivers) for t in time_blocks}
+df = pd.DataFrame(full_data, index=drivers)
+
+if auto_mode:
+    st.markdown("#### ⚙️ Auto-fill Starting Role for Driver 1")
+    starting_role = st.selectbox("Select Starting Role", options=roles, index=0)
+
+    # Define the rotation pattern starting from selected role
+    role_cycle = {
+        "Drive": ["Drive", "Spot", "Rest", "Rest", "Spot", "Drive", "Drive", "Spot"],
+        "Spot": ["Spot", "Rest", "Rest", "Spot", "Drive", "Drive", "Spot", "Drive"],
+        "Rest": ["Rest", "Rest", "Spot", "Drive", "Drive", "Spot", "Rest", "Rest"]
+    }
+
+    base_pattern = role_cycle[starting_role]
+
+    # Fill for each driver with their offset
+    for i, driver in enumerate(drivers):
+        pattern = base_pattern[i:] + base_pattern[:i]
+        for t in range(24):
+            role = pattern[t % len(pattern)]
+            df.iloc[i, t] = emoji_map[role]
+
+# ======================
+# Split Table and Show
 # ======================
 first_half_cols = time_blocks[:12]
 second_half_cols = time_blocks[12:]
 
 st.markdown("#### ⏱ Hours 0–11")
 first_half = st.data_editor(
-    full_df[first_half_cols],
+    df[first_half_cols],
     column_config={
         col: st.column_config.SelectboxColumn(label=col, options=list(emoji_map.values()), required=True)
         for col in first_half_cols
@@ -106,7 +131,7 @@ first_half = st.data_editor(
 
 st.markdown("#### ⏱ Hours 12–23")
 second_half = st.data_editor(
-    full_df[second_half_cols],
+    df[second_half_cols],
     column_config={
         col: st.column_config.SelectboxColumn(label=col, options=list(emoji_map.values()), required=True)
         for col in second_half_cols
@@ -117,10 +142,9 @@ second_half = st.data_editor(
 )
 
 # ======================
-# Merge Edits and Export CSV
+# Export CSV
 # ======================
 merged_df = pd.concat([first_half, second_half], axis=1)
-
 csv_df = merged_df.copy()
 for col in csv_df.columns:
     csv_df[col] = csv_df[col].map(lambda x: reverse_map.get(x, x))
