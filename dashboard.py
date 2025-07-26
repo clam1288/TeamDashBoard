@@ -3,8 +3,10 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta, time as dt_time
 import pytz
+from sidebar import render_sidebar
 
 st.set_page_config(page_title="Driver Stint Planner", layout="wide")
+render_sidebar()  # Link-based sidebar, no arguments
 
 # ======================
 # Compact Inputs
