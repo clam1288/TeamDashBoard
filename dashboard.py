@@ -7,7 +7,7 @@ st.set_page_config(page_title="ApexTurbo - Driver Stint Planner", layout="wide")
 st.title("🕒 ApexTurbo Driver Stint Planner")
 
 # ======================
-# SECTION 1: Schedule Time Input
+# SECTION 1: Race Time Input
 # ======================
 st.header("🗓 Race Start Setup")
 
@@ -28,7 +28,7 @@ with col3:
     selected_label = st.selectbox("Display Timezone", list(timezone_options.keys()), index=0)
     selected_tz = pytz.timezone(timezone_options[selected_label])
 
-# Combine into datetime and convert to selected timezone
+# Calculate time slots
 gmt_dt = datetime.combine(gmt_date, gmt_time)
 race_start_utc = pytz.utc.localize(gmt_dt)
 race_start_local = race_start_utc.astimezone(selected_tz)
@@ -37,51 +37,51 @@ local_times = [(race_start_local + timedelta(hours=i)).strftime("%I:%M %p") for 
 st.markdown("---")
 
 # ======================
-# SECTION 2: Driver Stint Planner
+# SECTION 2: Driver Planner
 # ======================
 st.header("📋 24-Hour Driver Schedule")
 
 drivers = st.multiselect("Select drivers", options=["Tom", "Chad", "Kyle"], default=["Tom", "Chad", "Kyle"])
 roles = ["Driving", "Spotting", "Resting"]
 
+# Initialize DataFrame with emoji labels
+emoji_map = {
+    "Driving": "🟣 Driving",
+    "Spotting": "🟢 Spotting",
+    "Resting": "🟡 Resting"
+}
+reverse_map = {v: k for k, v in emoji_map.items()}
+
+# Create starting planner with emoji role labels
 planner_data = {"Time": local_times}
 for d in drivers:
-    planner_data[d] = ["Resting"] * 24
+    planner_data[d] = [emoji_map["Resting"]] * 24
 planner = pd.DataFrame(planner_data)
 
-# Color highlight function
-def highlight_roles(val):
-    color_map = {
-        "Driving": "#9400D3",   # F1 Purple Sector
-        "Spotting": "#00FF00",  # F1 Green (PB)
-        "Resting": "#FFFF00"    # F1 Yellow (Not PB)
-    }
-    color = color_map.get(val, "white")
-    return f"background-color: {color}; color: black;"
-
-# Display interactive editable + colored table
+# Editor with emojis (color-coded in text)
 edited = st.data_editor(
     planner,
     column_config={
         d: st.column_config.SelectboxColumn(
             label=d,
-            options=roles,
+            options=list(emoji_map.values()),
             required=True
         ) for d in drivers
     },
     use_container_width=True,
     num_rows="dynamic",
-    key="planner_editor",
+    key="planner_editor"
 )
 
-# Apply color styling live (to current edited DataFrame)
-styled_df = edited.style.applymap(highlight_roles, subset=drivers)
-st.dataframe(styled_df, use_container_width=True)
+# Reverse map for export
+cleaned_df = edited.copy()
+for d in drivers:
+    cleaned_df[d] = cleaned_df[d].map(lambda x: reverse_map.get(x, x))
 
 # ======================
-# SECTION 3: CSV Export
+# SECTION 3: CSV Download
 # ======================
-csv = edited.to_csv(index=False).encode("utf-8")
+csv = cleaned_df.to_csv(index=False).encode("utf-8")
 st.download_button(
     "📥 Download Plan as CSV",
     csv,
