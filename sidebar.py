@@ -13,7 +13,8 @@ def render_sidebar():
     for label, target in pages.items():
         st.sidebar.markdown(f"- [{label}](?page={target})")
 
-    query_params = st.experimental_get_query_params()
-    current_page = query_params.get("page", ["Home"])[0]
+    # Use updated API
+    query_params = st.query_params
+    current_page = query_params.get("page", "Home")
 
     return current_page
