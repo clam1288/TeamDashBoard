@@ -3,10 +3,8 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta, time as dt_time
 import pytz
-from sidebar import render_sidebar
 
 st.set_page_config(page_title="Driver Stint Planner", layout="wide")
-render_sidebar(active="Driver Stint Planner")
 
 # ======================
 # Compact Inputs
@@ -134,10 +132,7 @@ second_half_cols = time_blocks[12:]
 st.markdown("#### ⏱ Hours 0–11")
 first_half = st.data_editor(
     df[first_half_cols],
-    column_config={
-        col: st.column_config.SelectboxColumn(label=col, options=list(emoji_map.values()), required=True)
-        for col in first_half_cols
-    },
+    column_config={col: st.column_config.SelectboxColumn(label=col, options=list(emoji_map.values()), required=True) for col in first_half_cols},
     use_container_width=True,
     num_rows="fixed",
     key="first_half"
@@ -146,10 +141,7 @@ first_half = st.data_editor(
 st.markdown("#### ⏱ Hours 12–23")
 second_half = st.data_editor(
     df[second_half_cols],
-    column_config={
-        col: st.column_config.SelectboxColumn(label=col, options=list(emoji_map.values()), required=True)
-        for col in second_half_cols
-    },
+    column_config={col: st.column_config.SelectboxColumn(label=col, options=list(emoji_map.values()), required=True) for col in second_half_cols},
     use_container_width=True,
     num_rows="fixed",
     key="second_half"
