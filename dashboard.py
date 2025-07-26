@@ -7,7 +7,7 @@ st.set_page_config(page_title="ApexTurbo - Driver Stint Planner", layout="wide")
 st.title("🕒 ApexTurbo Driver Stint Planner")
 
 # ======================
-# SECTION 1: Race Start Setup
+# SECTION 1: Race Setup Inputs
 # ======================
 st.header("🗓 Race Start Setup")
 
@@ -28,8 +28,23 @@ with col3:
     selected_label = st.selectbox("Display Timezone", list(timezone_options.keys()), index=0)
     selected_tz = pytz.timezone(timezone_options[selected_label])
 
-# Add pre-race session duration: 30 min practice + 15 min quali + 2 min grid
-prerace_duration = timedelta(minutes=47)
+st.markdown("---")
+
+# ======================
+# SECTION 2: Pre-Race Session Durations
+# ======================
+st.header("⏱ Pre-Race Sessions")
+
+col1, col2, col3 = st.columns(3)
+with col1:
+    practice_minutes = st.number_input("Practice Duration (min)", min_value=0, value=30, step=5)
+with col2:
+    quali_minutes = st.number_input("Qualifying Duration (min)", min_value=0, value=15, step=5)
+with col3:
+    grid_minutes = st.number_input("Grid Time (min)", min_value=0, value=2, step=1)
+
+# Calculate offset from pre-race sessions
+prerace_duration = timedelta(minutes=practice_minutes + quali_minutes + grid_minutes)
 
 # Compute adjusted race start time
 gmt_dt = datetime.combine(gmt_date, gmt_time)
@@ -39,11 +54,17 @@ race_start_local = race_start_utc.astimezone(selected_tz)
 # Generate 24-hour stint blocks starting after pre-race
 time_blocks = [(race_start_local + timedelta(hours=i)).strftime("%I:%M %p") for i in range(24)]
 
-st.markdown(f"🟠 **Note:** Race stints start at {race_start_local.strftime('%I:%M %p %Z')} after accounting for 47 min pre-race (30m Practice, 15m Quali, 2m Grid).")
+st.markdown(
+    f"""
+    🟠 **Note:** Race stints start at **{race_start_local.strftime('%I:%M %p %Z')}**  
+    (Practice: {practice_minutes} min, Quali: {quali_minutes} min, Grid: {grid_minutes} min — Total: {practice_minutes + quali_minutes + grid_minutes} min)
+    """
+)
+
 st.markdown("---")
 
 # ======================
-# SECTION 2: Rotated Driver Schedule
+# SECTION 3: Rotated Driver Schedule Table
 # ======================
 st.header("📋 24-Hour Driver Schedule")
 
@@ -56,11 +77,11 @@ emoji_map = {
 }
 reverse_map = {v: k for k, v in emoji_map.items()}
 
-# Create DataFrame: drivers as index, time blocks as columns
+# Create table with drivers as rows, time blocks as columns
 rotated_data = {time_label: [emoji_map["Resting"]] * len(drivers) for time_label in time_blocks}
 rotated_df = pd.DataFrame(rotated_data, index=drivers)
 
-# Editable table
+# Editable table with dropdowns
 edited = st.data_editor(
     rotated_df,
     column_config={
@@ -75,13 +96,13 @@ edited = st.data_editor(
     key="rotated_editor"
 )
 
-# Prepare CSV output
+# Convert emoji table back to raw roles for CSV export
 csv_ready_df = edited.copy()
 for col in csv_ready_df.columns:
     csv_ready_df[col] = csv_ready_df[col].map(lambda x: reverse_map.get(x, x))
 
 # ======================
-# SECTION 3: CSV Export
+# SECTION 4: CSV Export
 # ======================
 csv = csv_ready_df.to_csv().encode("utf-8")
 st.download_button(
