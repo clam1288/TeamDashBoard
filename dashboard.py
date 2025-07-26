@@ -26,23 +26,18 @@ selected_label = st.selectbox("Select Target Timezone for Schedule", list(timezo
 selected_tz = pytz.timezone(timezone_options[selected_label])
 
 try:
-    # Parse input and localize as GMT/UTC
     gmt_time = datetime.strptime(gmt_input, "%m/%d/%Y %H:%M")
     gmt_time = pytz.utc.localize(gmt_time)
-
-    # Convert to selected timezone
     race_start_local = gmt_time.astimezone(selected_tz)
 
-    # Display conversion preview
     st.success("📅 Converted Start Time:")
     st.write(f"**{selected_label}** → {race_start_local.strftime('%Y-%m-%d %I:%M %p')}")
 
-    # Generate 24-hour schedule block from local time
     local_times = [(race_start_local + timedelta(hours=i)).strftime("%I:%M %p") for i in range(24)]
 
 except ValueError:
     st.error("Please enter the time in format MM/DD/YYYY HH:MM")
-    local_times = [f"{i}:00" for i in range(24)]  # fallback in case of bad input
+    local_times = [f"{i}:00" for i in range(24)]
 
 st.markdown("---")
 
@@ -54,7 +49,6 @@ st.header("📋 24-Hour Driver Schedule")
 drivers = st.multiselect("Select drivers", options=["Tom", "Chad", "Kyle"], default=["Tom", "Chad", "Kyle"])
 roles = ["Driving", "Spotting", "Resting"]
 
-# Initialize or rebuild planner
 planner_data = {"Time": local_times}
 for d in drivers:
     planner_data[d] = ["Resting"] * 24
@@ -75,7 +69,27 @@ edited = st.data_editor(
     key="planner_editor"
 )
 
-# Download CSV
+# ======================
+# SECTION 3: Display with Role-Based Cell Coloring
+# ======================
+
+st.markdown("### 🎨 Visualized Schedule")
+
+def highlight_roles(val):
+    color_map = {
+        "Driving": "#9400D3",   # F1 Purple Sector
+        "Spotting": "#00FF00",  # F1 Green (Driver PB)
+        "Resting": "#FFFF00"    # F1 Yellow (Not PB)
+    }
+    color = color_map.get(val, "white")
+    return f"background-color: {color}; color: black;"
+
+styled_df = edited.style.applymap(highlight_roles, subset=drivers)
+st.dataframe(styled_df, use_container_width=True)
+
+# ======================
+# SECTION 4: Download Button
+# ======================
 csv = edited.to_csv(index=False).encode("utf-8")
 st.download_button(
     "📥 Download Plan as CSV",
