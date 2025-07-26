@@ -23,11 +23,10 @@ with st.sidebar:
 st.markdown("## 🕒 Driver Stint Planner")
 
 # ======================
-# Input Section
+# Compact Inputs
 # ======================
 with st.container():
     c1, c2, c3, c4, c5, c6, c7 = st.columns([1.1, 1, 1, 1, 1, 1, 2])
-
     with c1:
         st.caption("📅 GMT Start Date")
         gmt_date = st.date_input("Race Date", value=datetime(2025, 6, 11).date(), label_visibility="collapsed")
@@ -70,7 +69,6 @@ time_blocks = [(race_start_local + timedelta(hours=i)).strftime("%-I:%M%p") for 
 # ======================
 st.markdown("---")
 st.markdown("### 📋 Stint Table")
-drivers = st.multiselect("Drivers", options=["Tom", "Chad", "Kyle"], default=["Tom", "Chad", "Kyle"])
 
 roles = ["Drive", "Spot", "Rest"]
 emoji_map = {
@@ -80,40 +78,46 @@ emoji_map = {
 }
 reverse_map = {v: k for k, v in emoji_map.items()}
 
+drivers = st.multiselect("Drivers", options=["Tom", "Chad", "Kyle"], default=["Tom", "Chad", "Kyle"])
+
 # ======================
-# Automated Mode Toggle
+# Auto Mode Toggle
 # ======================
 auto_mode = st.toggle("🔁 Enable Automated Mode")
 
-# ======================
-# Initialize Table
-# ======================
-full_data = {t: [emoji_map["Rest"]] * len(drivers) for t in time_blocks}
-df = pd.DataFrame(full_data, index=drivers)
+# Initialize persistent session state table
+if "stint_df" not in st.session_state:
+    # Start with all Rest
+    table_data = {t: [emoji_map["Rest"]] * len(drivers) for t in time_blocks}
+    st.session_state.stint_df = pd.DataFrame(table_data, index=drivers)
 
+# ======================
+# Auto-Fill Pattern
+# ======================
 if auto_mode:
-    st.markdown("#### ⚙️ Auto-fill Starting Role for Driver 1")
-    starting_role = st.selectbox("Select Starting Role", options=roles, index=0)
+    st.markdown("#### ⚙️ Auto-generate Stint Schedule")
+    starting_role = st.selectbox("Select Starting Role for Driver 1", options=roles, index=0)
 
-    # Define the rotation pattern starting from selected role
-    role_cycle = {
-        "Drive": ["Drive", "Spot", "Rest", "Rest", "Spot", "Drive", "Drive", "Spot"],
-        "Spot": ["Spot", "Rest", "Rest", "Spot", "Drive", "Drive", "Spot", "Drive"],
-        "Rest": ["Rest", "Rest", "Spot", "Drive", "Drive", "Spot", "Rest", "Rest"]
-    }
+    # Driver patterns
+    pattern_1 = ["Drive", "Spot", "Rest", "Rest", "Spot", "Drive", "Drive", "Spot"]
+    pattern_2 = ["Spot", "Drive", "Drive", "Spot", "Rest", "Rest", "Spot", "Drive", "Drive", "Spot"]
+    pattern_3 = ["Rest", "Rest", "Spot", "Drive", "Drive", "Spot", "Rest", "Rest"]
 
-    base_pattern = role_cycle[starting_role]
+    patterns = [pattern_1, pattern_2, pattern_3]
 
-    # Fill for each driver with their offset
+    df = st.session_state.stint_df.copy()
     for i, driver in enumerate(drivers):
-        pattern = base_pattern[i:] + base_pattern[:i]
+        pat = patterns[i % len(patterns)]
         for t in range(24):
-            role = pattern[t % len(pattern)]
-            df.iloc[i, t] = emoji_map[role]
+            role = pat[t % len(pat)]
+            df.loc[driver, time_blocks[t]] = emoji_map[role]
+    st.session_state.stint_df = df  # update state
 
 # ======================
-# Split Table and Show
+# Table Display (split in two)
 # ======================
+df = st.session_state.stint_df
+
 first_half_cols = time_blocks[:12]
 second_half_cols = time_blocks[12:]
 
