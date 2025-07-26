@@ -81,7 +81,7 @@ reverse_map = {v: k for k, v in emoji_map.items()}
 drivers = st.multiselect("Drivers", options=["Tom", "Chad", "Kyle"], default=["Tom", "Chad", "Kyle"])
 
 # ======================
-# State Init
+# Session State Setup
 # ======================
 if "stint_df" not in st.session_state:
     data = {t: [emoji_map["Rest"]] * len(drivers) for t in time_blocks}
@@ -90,44 +90,31 @@ if "stint_df" not in st.session_state:
 if "auto_mode" not in st.session_state:
     st.session_state.auto_mode = False
 
-if "pending_auto" not in st.session_state:
-    st.session_state.pending_auto = False
-
 # ======================
-# Toggle With Confirmation
+# Auto Mode Toggle with Confirmation
 # ======================
-toggle = st.checkbox("🔁 Enable Automated Mode", value=st.session_state.auto_mode)
+user_toggle = st.checkbox("🔁 Enable Automated Mode", value=st.session_state.auto_mode)
 
-if toggle and not st.session_state.auto_mode and not st.session_state.pending_auto:
-    st.session_state.pending_auto = True
-    st.stop()
+trigger_automated_fill = False
 
-if st.session_state.pending_auto:
-    st.warning("⚠️ This will erase any changes made in manual mode.")
-
-    with st.form("confirm_auto_mode"):
-        confirm_col1, confirm_col2 = st.columns(2)
-        with confirm_col1:
-            yes = st.form_submit_button("Yes")
-        with confirm_col2:
-            no = st.form_submit_button("No")
-
-    if yes:
+if user_toggle and not st.session_state.auto_mode:
+    confirm = st.radio("⚠️ This will erase any changes made in manual mode. Do you want to continue?", ["No", "Yes"], horizontal=True)
+    if confirm == "Yes":
         st.session_state.auto_mode = True
-        st.session_state.pending_auto = False
-    elif no:
+        trigger_automated_fill = True
+    else:
         st.session_state.auto_mode = False
-        st.session_state.pending_auto = False
-    st.stop()
+elif not user_toggle:
+    st.session_state.auto_mode = False
 
 # ======================
-# Apply Automated Mode
+# Auto Fill Logic
 # ======================
-if st.session_state.auto_mode:
+if st.session_state.auto_mode and trigger_automated_fill:
     st.markdown("#### ⚙️ Auto-generate Stint Schedule")
     starting_role = st.selectbox("Select Starting Role for Driver 1", options=roles, index=0)
 
-    # Final Patterns
+    # Finalized Patterns
     pattern_1 = ["Drive", "Spot", "Rest", "Rest", "Spot", "Drive", "Drive", "Spot"]
     pattern_2 = ["Spot", "Drive", "Drive", "Spot", "Rest", "Rest", "Spot", "Drive", "Drive", "Spot"]
     pattern_3 = ["Rest", "Rest", "Spot", "Drive", "Drive", "Spot", "Rest", "Rest"]
@@ -143,7 +130,7 @@ if st.session_state.auto_mode:
     st.session_state.stint_df = auto_df
 
 # ======================
-# Table Display
+# Table Display (Split View)
 # ======================
 df = st.session_state.stint_df
 first_half_cols = time_blocks[:12]
