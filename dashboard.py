@@ -108,3 +108,78 @@ if st.session_state.pending_auto:
     with st.form("confirm_auto_mode"):
         confirm_col1, confirm_col2 = st.columns(2)
         with confirm_col1:
+            yes = st.form_submit_button("Yes")
+        with confirm_col2:
+            no = st.form_submit_button("No")
+
+    if yes:
+        st.session_state.auto_mode = True
+        st.session_state.pending_auto = False
+    elif no:
+        st.session_state.auto_mode = False
+        st.session_state.pending_auto = False
+    st.stop()
+
+# ======================
+# Apply Automated Mode
+# ======================
+if st.session_state.auto_mode:
+    st.markdown("#### ⚙️ Auto-generate Stint Schedule")
+    starting_role = st.selectbox("Select Starting Role for Driver 1", options=roles, index=0)
+
+    # Final Patterns
+    pattern_1 = ["Drive", "Spot", "Rest", "Rest", "Spot", "Drive", "Drive", "Spot"]
+    pattern_2 = ["Spot", "Drive", "Drive", "Spot", "Rest", "Rest", "Spot", "Drive", "Drive", "Spot"]
+    pattern_3 = ["Rest", "Rest", "Spot", "Drive", "Drive", "Spot", "Rest", "Rest"]
+
+    patterns = [pattern_1, pattern_2, pattern_3]
+
+    auto_df = st.session_state.stint_df.copy()
+    for i, driver in enumerate(drivers):
+        pat = patterns[i % len(patterns)]
+        for t in range(24):
+            role = pat[t % len(pat)]
+            auto_df.loc[driver, time_blocks[t]] = emoji_map[role]
+    st.session_state.stint_df = auto_df
+
+# ======================
+# Table Display
+# ======================
+df = st.session_state.stint_df
+first_half_cols = time_blocks[:12]
+second_half_cols = time_blocks[12:]
+
+st.markdown("#### ⏱ Hours 0–11")
+first_half = st.data_editor(
+    df[first_half_cols],
+    column_config={
+        col: st.column_config.SelectboxColumn(label=col, options=list(emoji_map.values()), required=True)
+        for col in first_half_cols
+    },
+    use_container_width=True,
+    num_rows="fixed",
+    key="first_half"
+)
+
+st.markdown("#### ⏱ Hours 12–23")
+second_half = st.data_editor(
+    df[second_half_cols],
+    column_config={
+        col: st.column_config.SelectboxColumn(label=col, options=list(emoji_map.values()), required=True)
+        for col in second_half_cols
+    },
+    use_container_width=True,
+    num_rows="fixed",
+    key="second_half"
+)
+
+# ======================
+# Export to CSV
+# ======================
+merged_df = pd.concat([first_half, second_half], axis=1)
+csv_df = merged_df.copy()
+for col in csv_df.columns:
+    csv_df[col] = csv_df[col].map(lambda x: reverse_map.get(x, x))
+
+csv = csv_df.to_csv().encode("utf-8")
+st.download_button("📥 Download CSV", csv, "driver_stint_plan.csv", "text/csv")
