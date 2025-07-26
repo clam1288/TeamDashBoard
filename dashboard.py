@@ -1,43 +1,38 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time as dt_time
 import pytz
 
 st.set_page_config(page_title="ApexTurbo - Driver Stint Planner", layout="wide")
-
 st.title("🕒 ApexTurbo Driver Stint Planner")
 
 # ======================
-# SECTION 1: GMT to US Time Zone Converter
+# SECTION 1: Schedule Time Input
 # ======================
-st.header("🕒 GMT to US Time Zone Converter")
+st.header("🗓 Race Start Setup")
 
-gmt_input = st.text_input("Enter race start in GMT (MM/DD/YYYY HH:MM, 24h format)", value="01/01/2025 13:00")
+col1, col2, col3 = st.columns(3)
 
-timezone_options = {
-    "EST (UTC-5)": "US/Eastern",
-    "CST (UTC-6)": "US/Central",
-    "MST (UTC-7)": "US/Mountain",
-    "PST (UTC-8)": "US/Pacific",
-    "UTC": "UTC"
-}
+with col1:
+    gmt_date = st.date_input("Race Start Date (GMT)", value=datetime(2025, 1, 1).date())
+with col2:
+    gmt_time = st.time_input("Race Start Time (GMT)", value=dt_time(13, 0))
+with col3:
+    timezone_options = {
+        "EST (UTC-5)": "US/Eastern",
+        "CST (UTC-6)": "US/Central",
+        "MST (UTC-7)": "US/Mountain",
+        "PST (UTC-8)": "US/Pacific",
+        "UTC": "UTC"
+    }
+    selected_label = st.selectbox("Display Timezone", list(timezone_options.keys()), index=0)
+    selected_tz = pytz.timezone(timezone_options[selected_label])
 
-selected_label = st.selectbox("Select Target Timezone for Schedule", list(timezone_options.keys()), index=0)
-selected_tz = pytz.timezone(timezone_options[selected_label])
-
-try:
-    gmt_time = datetime.strptime(gmt_input, "%m/%d/%Y %H:%M")
-    gmt_time = pytz.utc.localize(gmt_time)
-    race_start_local = gmt_time.astimezone(selected_tz)
-
-    st.success("📅 Converted Start Time:")
-    st.write(f"**{selected_label}** → {race_start_local.strftime('%Y-%m-%d %I:%M %p')}")
-
-    local_times = [(race_start_local + timedelta(hours=i)).strftime("%I:%M %p") for i in range(24)]
-
-except ValueError:
-    st.error("Please enter the time in format MM/DD/YYYY HH:MM")
-    local_times = [f"{i}:00" for i in range(24)]
+# Combine into datetime and convert to selected timezone
+gmt_dt = datetime.combine(gmt_date, gmt_time)
+race_start_utc = pytz.utc.localize(gmt_dt)
+race_start_local = race_start_utc.astimezone(selected_tz)
+local_times = [(race_start_local + timedelta(hours=i)).strftime("%I:%M %p") for i in range(24)]
 
 st.markdown("---")
 
@@ -70,16 +65,15 @@ edited = st.data_editor(
 )
 
 # ======================
-# SECTION 3: Display with Role-Based Cell Coloring
+# SECTION 3: Colorized Schedule View
 # ======================
-
 st.markdown("### 🎨 Visualized Schedule")
 
 def highlight_roles(val):
     color_map = {
         "Driving": "#9400D3",   # F1 Purple Sector
-        "Spotting": "#00FF00",  # F1 Green (Driver PB)
-        "Resting": "#FFFF00"    # F1 Yellow (Not PB)
+        "Spotting": "#00FF00",  # F1 Green
+        "Resting": "#FFFF00"    # F1 Yellow
     }
     color = color_map.get(val, "white")
     return f"background-color: {color}; color: black;"
@@ -88,7 +82,7 @@ styled_df = edited.style.applymap(highlight_roles, subset=drivers)
 st.dataframe(styled_df, use_container_width=True)
 
 # ======================
-# SECTION 4: Download Button
+# SECTION 4: CSV Export
 # ======================
 csv = edited.to_csv(index=False).encode("utf-8")
 st.download_button(
