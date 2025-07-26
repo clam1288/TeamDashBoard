@@ -6,7 +6,7 @@ import pytz
 st.set_page_config(page_title="ApexTurbo Driver Planner", layout="wide")
 
 # ======================
-# Sidebar Navigation (non-multipage safe)
+# Sidebar Navigation
 # ======================
 with st.sidebar:
     st.title("🏁 ApexTurbo")
@@ -23,32 +23,40 @@ with st.sidebar:
 st.markdown("## 🕒 Driver Stint Planner")
 
 # ======================
-# Compact 1-Line Input Bar
+# Clearly Labeled Inputs (Compact 1-line)
 # ======================
 with st.container():
     c1, c2, c3, c4, c5, c6, c7 = st.columns([1.1, 1, 1, 1, 1, 1, 2])
+
     with c1:
-        gmt_date = st.date_input("Date", value=datetime(2025, 1, 1).date(), label_visibility="collapsed")
+        st.caption("📅 GMT Start Date")
+        gmt_date = st.date_input("Race Date", value=datetime(2025, 6, 11).date(), label_visibility="collapsed")
+
     with c2:
-        gmt_time = st.time_input("Time (GMT)", value=dt_time(13, 0), label_visibility="collapsed")
+        st.caption("⏱ GMT Start Time")
+        gmt_time = st.time_input("Race Time", value=dt_time(12, 0), label_visibility="collapsed")
+
     with c3:
-        practice = st.number_input("Prac", min_value=0, value=30, step=5, label_visibility="collapsed")
+        st.caption("🏁 Practice (min)")
+        practice = st.number_input("Practice", min_value=0, value=30, step=5, label_visibility="collapsed")
+
     with c4:
-        quali = st.number_input("Qual", min_value=0, value=15, step=5, label_visibility="collapsed")
+        st.caption("🚦 Quali (min)")
+        quali = st.number_input("Quali", min_value=0, value=15, step=5, label_visibility="collapsed")
+
     with c5:
+        st.caption("🧍 Grid Time (min)")
         grid = st.number_input("Grid", min_value=0, value=2, step=1, label_visibility="collapsed")
+
     with c6:
-        tz_choice = st.selectbox(
-            "TZ",
-            ["EST", "CST", "MST", "PST", "UTC"],
-            index=0,
-            label_visibility="collapsed"
-        )
+        st.caption("🌐 Timezone")
+        tz_choice = st.selectbox("Timezone", ["EST", "CST", "MST", "PST", "UTC"], index=0, label_visibility="collapsed")
+
     with c7:
-        st.caption("📅 Start = GMT + Pre-race")
+        st.caption("🧮 Start = GMT + Pre-race")
 
 # ======================
-# Time Block Calculation
+# Time Block Generation
 # ======================
 tz_map = {
     "EST": "US/Eastern",
@@ -58,7 +66,6 @@ tz_map = {
     "UTC": "UTC"
 }
 selected_tz = pytz.timezone(tz_map[tz_choice])
-
 gmt_dt = datetime.combine(gmt_date, gmt_time)
 race_start_utc = pytz.utc.localize(gmt_dt) + timedelta(minutes=practice + quali + grid)
 race_start_local = race_start_utc.astimezone(selected_tz)
@@ -81,11 +88,10 @@ emoji_map = {
 }
 reverse_map = {v: k for k, v in emoji_map.items()}
 
-# Build table
+# Create editable table
 table_data = {t: [emoji_map["Rest"]] * len(drivers) for t in time_blocks}
 rotated_df = pd.DataFrame(table_data, index=drivers)
 
-# Editable grid
 edited = st.data_editor(
     rotated_df,
     column_config={
@@ -100,7 +106,7 @@ edited = st.data_editor(
     key="editor"
 )
 
-# Clean for export
+# Prepare CSV export
 csv_df = edited.copy()
 for col in csv_df.columns:
     csv_df[col] = csv_df[col].map(lambda x: reverse_map.get(x, x))
