@@ -23,7 +23,7 @@ with st.sidebar:
 st.markdown("## 🕒 Driver Stint Planner")
 
 # ======================
-# Clearly Labeled Inputs (Compact 1-line)
+# Compact Labeled Input Row
 # ======================
 with st.container():
     c1, c2, c3, c4, c5, c6, c7 = st.columns([1.1, 1, 1, 1, 1, 1, 2])
@@ -31,32 +31,26 @@ with st.container():
     with c1:
         st.caption("📅 GMT Start Date")
         gmt_date = st.date_input("Race Date", value=datetime(2025, 6, 11).date(), label_visibility="collapsed")
-
     with c2:
         st.caption("⏱ GMT Start Time")
         gmt_time = st.time_input("Race Time", value=dt_time(12, 0), label_visibility="collapsed")
-
     with c3:
         st.caption("🏁 Practice (min)")
         practice = st.number_input("Practice", min_value=0, value=30, step=5, label_visibility="collapsed")
-
     with c4:
         st.caption("🚦 Quali (min)")
         quali = st.number_input("Quali", min_value=0, value=15, step=5, label_visibility="collapsed")
-
     with c5:
         st.caption("🧍 Grid Time (min)")
         grid = st.number_input("Grid", min_value=0, value=2, step=1, label_visibility="collapsed")
-
     with c6:
         st.caption("🌐 Timezone")
         tz_choice = st.selectbox("Timezone", ["EST", "CST", "MST", "PST", "UTC"], index=0, label_visibility="collapsed")
-
     with c7:
         st.caption("🧮 Start = GMT + Pre-race")
 
 # ======================
-# Time Block Generation
+# Calculate Time Blocks
 # ======================
 tz_map = {
     "EST": "US/Eastern",
@@ -71,13 +65,11 @@ race_start_utc = pytz.utc.localize(gmt_dt) + timedelta(minutes=practice + quali 
 race_start_local = race_start_utc.astimezone(selected_tz)
 time_blocks = [(race_start_local + timedelta(hours=i)).strftime("%-I:%M%p") for i in range(24)]
 
+# ======================
+# Driver Config
+# ======================
 st.markdown("---")
-
-# ======================
-# Driver Table
-# ======================
 st.markdown("### 📋 Stint Table")
-
 drivers = st.multiselect("Drivers", options=["Tom", "Chad", "Kyle"], default=["Tom", "Chad", "Kyle"])
 
 roles = ["Drive", "Spot", "Rest"]
@@ -88,26 +80,48 @@ emoji_map = {
 }
 reverse_map = {v: k for k, v in emoji_map.items()}
 
-# Create editable table
-table_data = {t: [emoji_map["Rest"]] * len(drivers) for t in time_blocks}
-rotated_df = pd.DataFrame(table_data, index=drivers)
+# ======================
+# Build Full Table
+# ======================
+full_data = {t: [emoji_map["Rest"]] * len(drivers) for t in time_blocks}
+full_df = pd.DataFrame(full_data, index=drivers)
 
-edited = st.data_editor(
-    rotated_df,
+# ======================
+# Slice into Two Halves
+# ======================
+first_half_cols = time_blocks[:12]
+second_half_cols = time_blocks[12:]
+
+st.markdown("#### ⏱ Hours 0–11")
+first_half = st.data_editor(
+    full_df[first_half_cols],
     column_config={
-        col: st.column_config.SelectboxColumn(
-            label=col,
-            options=list(emoji_map.values()),
-            required=True
-        ) for col in rotated_df.columns
+        col: st.column_config.SelectboxColumn(label=col, options=list(emoji_map.values()), required=True)
+        for col in first_half_cols
     },
     use_container_width=True,
     num_rows="fixed",
-    key="editor"
+    key="first_half"
 )
 
-# Prepare CSV export
-csv_df = edited.copy()
+st.markdown("#### ⏱ Hours 12–23")
+second_half = st.data_editor(
+    full_df[second_half_cols],
+    column_config={
+        col: st.column_config.SelectboxColumn(label=col, options=list(emoji_map.values()), required=True)
+        for col in second_half_cols
+    },
+    use_container_width=True,
+    num_rows="fixed",
+    key="second_half"
+)
+
+# ======================
+# Merge Edits and Export CSV
+# ======================
+merged_df = pd.concat([first_half, second_half], axis=1)
+
+csv_df = merged_df.copy()
 for col in csv_df.columns:
     csv_df[col] = csv_df[col].map(lambda x: reverse_map.get(x, x))
 
