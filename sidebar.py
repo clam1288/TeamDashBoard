@@ -3,6 +3,7 @@ import streamlit as st
 def render_sidebar():
     st.sidebar.title("ApexTurbo Motorsports")
 
+    # Page links
     pages = {
         "Home": "Home",
         "Dashboard": "Dashboard",
@@ -10,10 +11,10 @@ def render_sidebar():
     }
 
     st.sidebar.markdown("### Navigation")
-    for label, page in pages.items():
-        st.sidebar.markdown(f"[{label}](?page={page})")
+    for label, target in pages.items():
+        st.sidebar.markdown(f"- [{label}](?page={target})")
 
-    # Read current page from query params
+    # Determine current page from URL
     query_params = st.experimental_get_query_params()
     current_page = query_params.get("page", ["Home"])[0]
 
