@@ -5,10 +5,39 @@ import pytz
 
 st.set_page_config(page_title="ApexTurbo - Driver Stint Planner", layout="wide")
 
-st.title("🕒 Driver Stint Planner")
-st.markdown("Plan your 24-hour race schedule below. Includes real-world time slots adjusted to your timezone.")
+st.title("🕒 ApexTurbo Driver Stint Planner")
 
-# --- Timezone Setup ---
+# ======================
+# SECTION 1: GMT to US Time Conversion
+# ======================
+st.header("🕒 GMT to US Time Zone Converter")
+
+gmt_input = st.text_input("Enter race start in GMT (YYYY-MM-DD HH:MM, 24h format)", value="2025-01-01 13:00")
+
+try:
+    gmt_time = pytz.utc.localize(datetime.strptime(gmt_input, "%Y-%m-%d %H:%M"))
+
+    timezones = {
+        "Eastern (US/Eastern)": gmt_time.astimezone(pytz.timezone("US/Eastern")),
+        "Central (US/Central)": gmt_time.astimezone(pytz.timezone("US/Central")),
+        "Mountain (US/Mountain)": gmt_time.astimezone(pytz.timezone("US/Mountain")),
+        "Pacific (US/Pacific)": gmt_time.astimezone(pytz.timezone("US/Pacific")),
+    }
+
+    st.success("📅 Race Start Time in US Time Zones:")
+    for zone, t in timezones.items():
+        st.write(f"**{zone}** → {t.strftime('%Y-%m-%d %I:%M %p')}")
+
+except ValueError:
+    st.error("Please enter the time in the format YYYY-MM-DD HH:MM")
+
+st.markdown("---")
+
+# ======================
+# SECTION 2: Driver Stint Planner
+# ======================
+st.header("📋 24-Hour Driver Schedule")
+
 timezone_options = {
     "EST (UTC-5)": "US/Eastern",
     "CST (UTC-6)": "US/Central",
@@ -20,26 +49,25 @@ timezone_options = {
 selected_label = st.selectbox("Select Timezone", list(timezone_options.keys()), index=0)
 selected_tz = pytz.timezone(timezone_options[selected_label])
 
-# Base race start: 8:00 AM EST (Eastern Time)
-race_start_est = pytz.timezone("US/Eastern").localize(datetime(2025, 1, 1, 8, 0))
-race_start_local = race_start_est.astimezone(selected_tz)
+# Base start time: 8:00 AM EST on Jan 1, 2025
+base_start_est = pytz.timezone("US/Eastern").localize(datetime(2025, 1, 1, 8, 0))
+base_start_local = base_start_est.astimezone(selected_tz)
 
-# Generate 24 real-world time slots from local race start
-times = [(race_start_local + timedelta(hours=i)).strftime("%I:%M %p") for i in range(24)]
+# Build 24-hour time blocks in local timezone
+local_times = [(base_start_local + timedelta(hours=i)).strftime("%I:%M %p") for i in range(24)]
 
-# --- Drivers & Roles ---
 drivers = st.multiselect("Select drivers", options=["Tom", "Chad", "Kyle"], default=["Tom", "Chad", "Kyle"])
 roles = ["Driving", "Spotting", "Resting"]
 
-# --- Planner Initialization ---
+# Initialize planner
 if "planner" not in st.session_state or st.session_state.get("last_tz") != selected_tz:
-    planner = pd.DataFrame({"Time": times})
+    planner = pd.DataFrame({"Time": local_times})
     for d in drivers:
         planner[d] = ["Resting"] * 24
     st.session_state.planner = planner
     st.session_state.last_tz = selected_tz
 
-# --- Data Editor ---
+# Show editable planner
 edited = st.data_editor(
     st.session_state.planner,
     use_container_width=True,
@@ -47,10 +75,10 @@ edited = st.data_editor(
     key="planner_editor"
 )
 
-# Save to session state
+# Save planner edits
 st.session_state.planner = edited
 
-# --- Download Button ---
+# Download option
 csv = edited.to_csv(index=False).encode("utf-8")
 st.download_button(
     "📥 Download Plan as CSV",
