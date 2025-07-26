@@ -1,20 +1,16 @@
 import streamlit as st
 
-def render_sidebar():
+def render_sidebar(active="Dashboard"):
     st.sidebar.title("ApexTurbo Motorsports")
 
-    # Logo (optional: if you have a logo file in 'assets' folder)
-    # st.sidebar.image("assets/logo.png", use_column_width=True)
-
-    # Navigation
     page = st.sidebar.radio(
         "Navigation",
-        ["Landing Page", "Dashboard", "Stint Planner"],
-        index=1
+        ["Landing Page", "Dashboard", "Driver Stint Planner"],
+        index=["Landing Page", "Dashboard", "Driver Stint Planner"].index(active)
     )
 
-    # Mode toggle (specific to Stint Planner use case)
-    if page == "Stint Planner":
+    # Show toggle only on Stint Planner
+    if page == "Driver Stint Planner":
         if "automated_mode" not in st.session_state:
             st.session_state.automated_mode = False
 
