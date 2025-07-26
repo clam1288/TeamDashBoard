@@ -8,7 +8,7 @@ st.set_page_config(page_title="ApexTurbo - Driver Stint Planner", layout="wide")
 st.title("🕒 ApexTurbo Driver Stint Planner")
 
 # ======================
-# SECTION 1: GMT Input & Time Zone Conversion
+# SECTION 1: GMT to US Time Zone Converter
 # ======================
 st.header("🕒 GMT to US Time Zone Converter")
 
@@ -54,17 +54,22 @@ st.header("📋 24-Hour Driver Schedule")
 drivers = st.multiselect("Select drivers", options=["Tom", "Chad", "Kyle"], default=["Tom", "Chad", "Kyle"])
 roles = ["Driving", "Spotting", "Resting"]
 
-# Always rebuild planner from latest valid local_times
-planner = pd.DataFrame({"Time": local_times})
+# Initialize or rebuild planner
+planner_data = {"Time": local_times}
 for d in drivers:
-    planner[d] = ["Resting"] * 24
+    planner_data[d] = ["Resting"] * 24
+planner = pd.DataFrame(planner_data)
 
-# Cache current plan if needed
-st.session_state.planner = planner
-
-# Show editable table
+# Editable table with dropdowns
 edited = st.data_editor(
     planner,
+    column_config={
+        d: st.column_config.SelectboxColumn(
+            label=d,
+            options=roles,
+            required=True
+        ) for d in drivers
+    },
     use_container_width=True,
     num_rows="dynamic",
     key="planner_editor"
