@@ -1,26 +1,12 @@
+# dashboard.py
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta, time as dt_time
 import pytz
+from sidebar import render_sidebar
 
-st.set_page_config(page_title="ApexTurbo Driver Planner", layout="wide")
-
-# ======================
-# Sidebar Navigation
-# ======================
-with st.sidebar:
-    st.title("🏁 ApexTurbo")
-    st.markdown("### Navigation")
-    st.markdown("- 🕒 Driver Stint Planner")
-    st.markdown("- ⛽ Fuel Strategy (Coming Soon)")
-    st.markdown("- 🗒 Track Notes (Coming Soon)")
-    st.divider()
-    st.caption("We don’t hotlap. We finish together.")
-
-# ======================
-# Title
-# ======================
-st.markdown("## 🕒 Driver Stint Planner")
+st.set_page_config(page_title="Driver Stint Planner", layout="wide")
+render_sidebar(active="Driver Stint Planner")
 
 # ======================
 # Compact Inputs
@@ -40,7 +26,7 @@ with st.container():
         st.caption("🚦 Quali (min)")
         quali = st.number_input("Quali", min_value=0, value=15, step=5, label_visibility="collapsed")
     with c5:
-        st.caption("🧍 Grid Time (min)")
+        st.caption("🢍 Grid Time (min)")
         grid = st.number_input("Grid", min_value=0, value=2, step=1, label_visibility="collapsed")
     with c6:
         st.caption("🌐 Timezone")
@@ -67,9 +53,6 @@ time_blocks = [(race_start_local + timedelta(hours=i)).strftime("%-I:%M%p") for 
 # ======================
 # Driver Roles
 # ======================
-st.markdown("---")
-st.markdown("### 📋 Stint Table")
-
 roles = ["Drive", "Spot", "Rest"]
 emoji_map = {
     "Drive": "🟣 Drive",
@@ -81,7 +64,7 @@ reverse_map = {v: k for k, v in emoji_map.items()}
 drivers = st.multiselect("Drivers", options=["Tom", "Chad", "Kyle"], default=["Tom", "Chad", "Kyle"])
 
 # ======================
-# Session State Setup
+# State Init
 # ======================
 if "stint_df" not in st.session_state:
     data = {t: [emoji_map["Rest"]] * len(drivers) for t in time_blocks}
@@ -90,31 +73,43 @@ if "stint_df" not in st.session_state:
 if "auto_mode" not in st.session_state:
     st.session_state.auto_mode = False
 
-# ======================
-# Auto Mode Toggle with Confirmation
-# ======================
-user_toggle = st.checkbox("🔁 Enable Automated Mode", value=st.session_state.auto_mode)
+if "pending_auto" not in st.session_state:
+    st.session_state.pending_auto = False
 
-trigger_automated_fill = False
+# ======================
+# Toggle With Confirmation
+# ======================
+toggle = st.checkbox("🔁 Enable Automated Mode", value=st.session_state.auto_mode)
 
-if user_toggle and not st.session_state.auto_mode:
-    confirm = st.radio("⚠️ This will erase any changes made in manual mode. Do you want to continue?", ["No", "Yes"], horizontal=True)
-    if confirm == "Yes":
+if toggle and not st.session_state.auto_mode and not st.session_state.pending_auto:
+    st.session_state.pending_auto = True
+    st.stop()
+
+if st.session_state.pending_auto:
+    st.warning("⚠️ This will erase any changes made in manual mode.")
+
+    with st.form("confirm_auto_mode"):
+        confirm_col1, confirm_col2 = st.columns(2)
+        with confirm_col1:
+            yes = st.form_submit_button("Yes")
+        with confirm_col2:
+            no = st.form_submit_button("No")
+
+    if yes:
         st.session_state.auto_mode = True
-        trigger_automated_fill = True
-    else:
+        st.session_state.pending_auto = False
+    elif no:
         st.session_state.auto_mode = False
-elif not user_toggle:
-    st.session_state.auto_mode = False
+        st.session_state.pending_auto = False
+    st.stop()
 
 # ======================
-# Auto Fill Logic
+# Apply Automated Mode
 # ======================
-if st.session_state.auto_mode and trigger_automated_fill:
+if st.session_state.auto_mode:
     st.markdown("#### ⚙️ Auto-generate Stint Schedule")
     starting_role = st.selectbox("Select Starting Role for Driver 1", options=roles, index=0)
 
-    # Finalized Patterns
     pattern_1 = ["Drive", "Spot", "Rest", "Rest", "Spot", "Drive", "Drive", "Spot"]
     pattern_2 = ["Spot", "Drive", "Drive", "Spot", "Rest", "Rest", "Spot", "Drive", "Drive", "Spot"]
     pattern_3 = ["Rest", "Rest", "Spot", "Drive", "Drive", "Spot", "Rest", "Rest"]
@@ -130,7 +125,7 @@ if st.session_state.auto_mode and trigger_automated_fill:
     st.session_state.stint_df = auto_df
 
 # ======================
-# Table Display (Split View)
+# Table Display
 # ======================
 df = st.session_state.stint_df
 first_half_cols = time_blocks[:12]
