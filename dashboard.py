@@ -49,7 +49,17 @@ for d in drivers:
     planner_data[d] = ["Resting"] * 24
 planner = pd.DataFrame(planner_data)
 
-# Editable table with dropdowns
+# Color highlight function
+def highlight_roles(val):
+    color_map = {
+        "Driving": "#9400D3",   # F1 Purple Sector
+        "Spotting": "#00FF00",  # F1 Green (PB)
+        "Resting": "#FFFF00"    # F1 Yellow (Not PB)
+    }
+    color = color_map.get(val, "white")
+    return f"background-color: {color}; color: black;"
+
+# Display interactive editable + colored table
 edited = st.data_editor(
     planner,
     column_config={
@@ -61,28 +71,15 @@ edited = st.data_editor(
     },
     use_container_width=True,
     num_rows="dynamic",
-    key="planner_editor"
+    key="planner_editor",
 )
 
-# ======================
-# SECTION 3: Colorized Schedule View
-# ======================
-st.markdown("### 🎨 Visualized Schedule")
-
-def highlight_roles(val):
-    color_map = {
-        "Driving": "#9400D3",   # F1 Purple Sector
-        "Spotting": "#00FF00",  # F1 Green
-        "Resting": "#FFFF00"    # F1 Yellow
-    }
-    color = color_map.get(val, "white")
-    return f"background-color: {color}; color: black;"
-
+# Apply color styling live (to current edited DataFrame)
 styled_df = edited.style.applymap(highlight_roles, subset=drivers)
 st.dataframe(styled_df, use_container_width=True)
 
 # ======================
-# SECTION 4: CSV Export
+# SECTION 3: CSV Export
 # ======================
 csv = edited.to_csv(index=False).encode("utf-8")
 st.download_button(
