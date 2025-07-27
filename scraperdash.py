@@ -13,13 +13,17 @@ from io import StringIO
 def get_subsession_ids(url: str):
     try:
         options = Options()
+        # ✅ Required for Streamlit Cloud
+        options.binary_location = "/usr/bin/chromium-browser"
         options.add_argument("--headless")
         options.add_argument("--disable-gpu")
         options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+
         driver = webdriver.Chrome(options=options)
 
         driver.get(url)
-        time.sleep(5)  # Allow JS to load
+        time.sleep(5)  # Let JS content load
 
         soup = BeautifulSoup(driver.page_source, "html.parser")
         card = soup.find("div", class_="card-header", string="Race Splits")
@@ -39,7 +43,8 @@ def get_subsession_ids(url: str):
                     subsession_ids.append(sid)
 
         driver.quit()
-        return list(set(subsession_ids))  # remove duplicates
+        return list(set(subsession_ids))  # unique values only
+
     except Exception as e:
         return f"ERROR: {e}"
 
@@ -49,7 +54,12 @@ def get_subsession_ids(url: str):
 st.set_page_config(page_title="iRacing Subsession Extractor", layout="centered")
 st.title("🔍 iRacing Race Split Subsession Scraper")
 
-st.markdown("Paste an iRacing event page URL below (like a results overview), and this tool will extract all subsession IDs.")
+st.markdown(
+    """
+    Paste an iRacing event results URL (like a race page) below.
+    This tool will extract all subsession IDs from the **Race Splits** section.
+    """
+)
 
 url = st.text_input("iRacing Race Results URL")
 
@@ -66,8 +76,8 @@ if url:
 
                 csv_buffer = StringIO()
                 df.to_csv(csv_buffer, index=False)
-                st.download_button("⬇️ Download as CSV", data=csv_buffer.getvalue(), file_name="subsession_ids.csv", mime="text/csv")
+                st.download_button("⬇️ Download CSV", data=csv_buffer.getvalue(), file_name="subsession_ids.csv", mime="text/csv")
             else:
-                st.warning("No subsession IDs found on the page.")
+                st.warning("No subsession IDs found.")
         else:
             st.error(result)
